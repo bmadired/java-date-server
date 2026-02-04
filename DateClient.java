@@ -1,24 +1,25 @@
-import java.io.*;
 import java.net.*;
+import java.io.*;
 
 public class DateClient {
     public static void main(String[] args) {
         try {
-            String serverIP = "192.168.137.1"; // localhost
-            int port = 8080;
+            /* make connection to server socket */
+            Socket sock = new Socket ("127.0.0.1",6013);
 
-            Socket socket = new Socket(serverIP, port);
+            InputStream in = sock.getInputStream();
+            BufferedReader bin = new BufferedReader(new InputStreamReader(in));
 
-            BufferedReader in = new BufferedReader(
-                    new InputStreamReader(socket.getInputStream()));
+            /* read the date from the socket */
+            String line;
+            while ((line = bin.readLine()) != null) System.out.println(line);
 
-            String date = in.readLine();
-            System.out.println("Date from server: " + date);
+            /* close the socket connection */
+            sock.close();
 
-            socket.close();
-
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException ioe) {
+            System.err.println(ioe);
         }
     }
 }
+
