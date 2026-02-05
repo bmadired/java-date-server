@@ -5,7 +5,7 @@ public class DateClient {
     public static void main(String[] args) {
         try {
             /* make connection to server socket */
-            Socket sock = new Socket ("127.0.0.1",6013);
+            Socket sock = new Socket ("172.16.41.197",6013);
 
             InputStream in = sock.getInputStream();
             BufferedReader bin = new BufferedReader(new InputStreamReader(in));
