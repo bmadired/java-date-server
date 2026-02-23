@@ -1,134 +1,150 @@
 import java.net.*;
 import java.io.*;
 
-public class DateServer {
+public class DateServer
+{
+    static ClientHandler[] clients = new ClientHandler[100];
+    static String[] clientNames = new String[100];
+    static int clientCount = 0;
+    static int idCounter = 1;
 
-    // Max number of clients
-    private static final int MAX_CLIENTS = 50;
-
-    // Store client names and sockets
-    private static String[] clientNames = new String[MAX_CLIENTS];
-    private static Socket[] clientSockets = new Socket[MAX_CLIENTS];
-
-    public static void main(String[] args) {
+    public static void main (String[] args) {
         try {
-            ServerSocket serverSocket = new ServerSocket(6013);
-            System.out.println("Server started on port 6013...");
+            ServerSocket sock = new ServerSocket(6013);
+
+            new Thread(new Runnable() {
+                public void run() {
+                    BufferedReader serverInput =
+                            new BufferedReader(new InputStreamReader(System.in));
+                    String input;
+
+                    try {
+                        while ((input = serverInput.readLine()) != null) {
+
+                            if (input.equalsIgnoreCase("all")) {
+                                for (int i = 0; i < clientCount; i++) {
+                                    System.out.println(clients[i].id + ". " + clients[i].name);
+                                }
+                            }
+                            else {
+                                try {
+                                    int clientId = Integer.parseInt(input);
+                                    ClientHandler target = findClientById(clientId);
+
+                                    if (target != null) {
+                                        String msg = serverInput.readLine();
+                                        target.sendMessage(msg);
+                                    }
+
+                                } catch (NumberFormatException e) {
+                                }
+                            }
+                        }
+                    } catch (IOException e) {
+                    }
+                }
+            }).start();
 
             while (true) {
-                Socket clientSocket = serverSocket.accept();
-                new Thread(new ClientHandler(clientSocket)).start();
-            }
+                Socket client = sock.accept();
+                System.out.println("Client connected");
 
-        } catch (IOException ioe) {
+                ClientHandler handler = new ClientHandler(client);
+                new Thread(handler).start();
+            }
+        }
+        catch (IOException ioe) {
             System.err.println(ioe);
         }
     }
 
-    static class ClientHandler implements Runnable {
-        private Socket clientSocket;
-        private String clientName;
+    static synchronized boolean nameExists(String name) {
+        for (int i = 0; i < clientCount; i++) {
+            if (clientNames[i].equalsIgnoreCase(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-        public ClientHandler(Socket socket) {
-            this.clientSocket = socket;
+    static synchronized void addClient(ClientHandler handler) {
+        clients[clientCount] = handler;
+        clientNames[clientCount] = handler.name;
+        clientCount++;
+    }
+
+    static synchronized void removeClient(ClientHandler handler) {
+        for (int i = 0; i < clientCount; i++) {
+            if (clients[i] == handler) {
+                for (int j = i; j < clientCount - 1; j++) {
+                    clients[j] = clients[j + 1];
+                    clientNames[j] = clientNames[j + 1];
+                }
+                clientCount--;
+                break;
+            }
+        }
+    }
+
+    static synchronized ClientHandler findClientById(int id) {
+        for (int i = 0; i < clientCount; i++) {
+            if (clients[i].id == id) {
+                return clients[i];
+            }
+        }
+        return null;
+    }
+
+    static class ClientHandler implements Runnable {
+
+        Socket socket;
+        PrintWriter pout;
+        BufferedReader bin;
+        int id;
+        String name;
+
+        ClientHandler(Socket socket) {
+            this.socket = socket;
         }
 
         public void run() {
             try {
-                PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                pout = new PrintWriter(socket.getOutputStream(), true);
+                bin = new BufferedReader(
+                        new InputStreamReader(socket.getInputStream()));
 
-                // Ask for client name
-                while (true) {
-                    out.println("Enter your name:");
-                    clientName = in.readLine();
+                pout.println("Enter your name:");
+                name = bin.readLine();
 
-                    if (clientName == null || clientName.isEmpty()) {
-                        clientSocket.close();
-                        return;
-                    }
-
-                    synchronized (clientNames) {
-                        if (isNameTaken(clientName)) {
-                            out.println("Name already taken, try another.");
-                        } else {
-                            addClient(clientName, clientSocket);
-                            out.println("Welcome, " + clientName + "!");
-                            broadcast(clientName + " has joined the chat.", clientName);
-                            break;
-                        }
-                    }
+                while (nameExists(name)) {
+                    pout.println("Name already taken. Enter another name:");
+                    name = bin.readLine();
                 }
 
-                // Display current date
-                out.println("Server date: " + new java.util.Date().toString());
+                id = idCounter++;
+                addClient(this);
+
+                pout.println("Your ID is: " + id);
 
                 String message;
-                while ((message = in.readLine()) != null) {
-                    if (message.equalsIgnoreCase("exit")) {
+
+                while ((message = bin.readLine()) != null) {
+
+                    if (message.equalsIgnoreCase("exit"))
                         break;
-                    }
 
-                    // Display on server console
-                    System.out.println(clientName + ": " + message);
-
-                    // Send to other clients
-                    broadcast(clientName + ": " + message, clientName);
+                    System.out.println(name + ": " + message);
                 }
 
-                // Client disconnects
-                synchronized (clientNames) {
-                    removeClient(clientName);
-                }
-                broadcast(clientName + " has left the chat.", clientName);
-                clientSocket.close();
+                removeClient(this);
+                socket.close();
 
-            } catch (IOException ioe) {
-                System.err.println("Connection error with client " + clientName + ": " + ioe.getMessage());
+            } catch (IOException e) {
             }
         }
 
-        private boolean isNameTaken(String name) {
-            for (int i = 0; i < MAX_CLIENTS; i++) {
-                if (clientNames[i] != null && clientNames[i].equals(name)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        private void addClient(String name, Socket socket) {
-            for (int i = 0; i < MAX_CLIENTS; i++) {
-                if (clientNames[i] == null) {
-                    clientNames[i] = name;
-                    clientSockets[i] = socket;
-                    break;
-                }
-            }
-        }
-
-        private void removeClient(String name) {
-            for (int i = 0; i < MAX_CLIENTS; i++) {
-                if (name.equals(clientNames[i])) {
-                    clientNames[i] = null;
-                    clientSockets[i] = null;
-                    break;
-                }
-            }
-        }
-
-        private void broadcast(String message, String sender) {
-            for (int i = 0; i < MAX_CLIENTS; i++) {
-                try {
-                    if (clientSockets[i] != null && !clientNames[i].equals(sender)) {
-                        PrintWriter out = new PrintWriter(clientSockets[i].getOutputStream(), true);
-                        out.println(message);
-                    }
-                } catch (IOException e) {
-                    System.err.println("Failed to send message to " + clientNames[i]);
-                }
-            }
+        void sendMessage(String msg) {
+            pout.println(msg);
         }
     }
 }
-
