@@ -5,7 +5,6 @@ public class DateServer {
     static ClientHandler[] clients = new ClientHandler[100];
     static String[] clientNames = new String[100];
     static int clientCount = 0;
-    static int idCounter = 1;
 
     public static void main(String[] args) {
         try {
@@ -53,6 +52,19 @@ public class DateServer {
         }
     }
 
+    static synchronized int assignId() {
+        boolean[] usedIds = new boolean[clientCount + 2];
+        for (int i = 0; i < clientCount; i++) {
+            if (clients[i].id <= clientCount + 1) {
+                usedIds[clients[i].id] = true;
+            }
+        }
+        for (int i = 1; i < usedIds.length; i++) {
+            if (!usedIds[i]) return i;
+        }
+        return clientCount + 1;
+    }
+
     static synchronized boolean nameExists(String name) {
         for (int i = 0; i < clientCount; i++) {
             if (clientNames[i].equalsIgnoreCase(name)) return true;
@@ -73,6 +85,8 @@ public class DateServer {
                     clients[j] = clients[j + 1];
                     clientNames[j] = clientNames[j + 1];
                 }
+                clients[clientCount - 1] = null;
+                clientNames[clientCount - 1] = null;
                 clientCount--;
                 break;
             }
@@ -84,6 +98,14 @@ public class DateServer {
             if (clients[i].id == id) return clients[i];
         }
         return null;
+    }
+
+    static synchronized String getClientList() {
+        String list = "Connected clients:\n";
+        for (int i = 0; i < clientCount; i++) {
+            list += clients[i].id + ". " + clients[i].name + "\n";
+        }
+        return list;
     }
 
     static class ClientHandler implements Runnable {
@@ -110,7 +132,7 @@ public class DateServer {
                     name = bin.readLine();
                 }
 
-                id = idCounter++;
+                id = assignId();
                 addClient(this);
 
                 System.out.println("Client " + id + " has connected.");
@@ -121,8 +143,28 @@ public class DateServer {
                     if (message.equalsIgnoreCase("end")) {
                         System.out.println("Client " + id + " connection was ended.");
                         break;
+                    } else if (message.equalsIgnoreCase("all")) {
+                        sendMessage(getClientList());
+                    } else if (message.startsWith("@")) {
+                        try {
+                            int targetId = Integer.parseInt(message.substring(1));
+                            if (targetId == id) {
+                                sendMessage("You cannot message yourself.");
+                            } else {
+                                ClientHandler target = findClientById(targetId);
+                                if (target != null) {
+                                    String privateMsg = bin.readLine();
+                                    target.sendMessage(name + ": " + privateMsg);
+                                } else {
+                                    sendMessage("Client " + targetId + " not found.");
+                                }
+                            }
+                        } catch (NumberFormatException e) {
+                            sendMessage("Invalid ID.");
+                        }
+                    } else {
+                        System.out.println(name + ": " + message);
                     }
-                    System.out.println(name + ": " + message);
                 }
 
                 removeClient(this);
