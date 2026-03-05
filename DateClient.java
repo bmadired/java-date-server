@@ -5,33 +5,31 @@ public class DateClient {
     public static void main(String[] args) {
         try {
             Socket sock = new Socket("172.16.41.197", 6013);
-
             PrintWriter pout = new PrintWriter(sock.getOutputStream(), true);
-            BufferedReader bin  = new BufferedReader(new InputStreamReader(sock.getInputStream()));
+            BufferedReader bin = new BufferedReader(new InputStreamReader(sock.getInputStream()));
             BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in));
 
-            String line;
-            while ((line = bin.readLine()) != null) {
-                System.out.println(line);
-                if (line.startsWith("Your ID is:")) break;
-                pout.println(userInput.readLine());
-            }
-
-            Thread receiver = new Thread(() -> {
-                try {
-                    String incoming;
-                    while ((incoming = bin.readLine()) != null) {
-                        System.out.println(incoming);
-                    }
-                } catch (IOException e) {}
-            });
-            receiver.setDaemon(true);
-            receiver.start();
+            new Thread(new Runnable() {
+                public void run() {
+                    try {
+                        String incoming;
+                        while ((incoming = bin.readLine()) != null) {
+                            System.out.println(incoming);
+                            if (incoming.equalsIgnoreCase("Connection was ended.")) {
+                                System.exit(0);
+                            }
+                        }
+                    } catch (IOException e) {}
+                }
+            }).start();
 
             String userMessage;
             while ((userMessage = userInput.readLine()) != null) {
                 pout.println(userMessage);
-                if (userMessage.equalsIgnoreCase("exit")) break;
+                if (userMessage.equalsIgnoreCase("end")) {
+                    System.out.println("Connection was ended.");
+                    break;
+                }
             }
 
             sock.close();
