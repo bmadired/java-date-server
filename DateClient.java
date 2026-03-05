@@ -1,54 +1,36 @@
 import java.net.*;
 import java.io.*;
 
-public class DateClient
-{
-    public static void main (String[] args) {
+public class DateClient {
+    public static void main(String[] args) {
         try {
             Socket sock = new Socket("192.168.1.169", 6013);
 
-            System.out.println("Connected to server");
-
             PrintWriter pout = new PrintWriter(sock.getOutputStream(), true);
-            BufferedReader bin = new BufferedReader(
-                    new InputStreamReader(sock.getInputStream()));
-            BufferedReader userInput = new BufferedReader(
-                    new InputStreamReader(System.in));
+            BufferedReader bin  = new BufferedReader(new InputStreamReader(sock.getInputStream()));
+            BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in));
 
-            /* read the Date from the server */
-            System.out.println("Server: " + bin.readLine());
+            Thread receiver = new Thread(() -> {
+                try {
+                    String incoming;
+                    while ((incoming = bin.readLine()) != null) {
+                        System.out.println("Server: " + incoming);
+                    }
+                } catch (IOException e) {}
+            });
+            receiver.setDaemon(true);
+            receiver.start();
 
             String userMessage;
-            String serverMessage;
-
-            while (true) {
-
-                userMessage = userInput.readLine();
-
-                if (userMessage == null ||
-                    userMessage.equalsIgnoreCase("exit")) {
-                    pout.println("exit");
-                    break;
-                }
-
+            while ((userMessage = userInput.readLine()) != null) {
                 pout.println(userMessage);
-
-                serverMessage = bin.readLine();
-
-                if (serverMessage == null ||
-                    serverMessage.equalsIgnoreCase("exit")) {
-                    break;
-                }
-
-                System.out.println("Server: " + serverMessage);
+                if (userMessage.equalsIgnoreCase("exit")) break;
             }
 
-            /* close the socket */
             sock.close();
-        }
-        catch (IOException ioe) {
+
+        } catch (IOException ioe) {
             System.err.println(ioe);
         }
     }
 }
-
