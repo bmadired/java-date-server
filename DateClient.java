@@ -25,10 +25,18 @@ public class DateClient {
 
             String userMessage;
             while ((userMessage = userInput.readLine()) != null) {
-                pout.println(userMessage);
                 if (userMessage.equalsIgnoreCase("end")) {
+                    pout.println("end");
                     System.out.println("Connection was ended.");
                     break;
+                } else if (userMessage.matches("\\d+")) {
+                    int targetId = Integer.parseInt(userMessage);
+                    System.out.println("Enter message for client " + targetId + ":");
+                    String privateMsg = userInput.readLine();
+                    pout.println("@" + targetId);
+                    pout.println(privateMsg);
+                } else {
+                    pout.println(userMessage);
                 }
             }
 
