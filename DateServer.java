@@ -204,7 +204,7 @@ public class DateServer {
                         sendMessage(getClientList());
                     } else if (message.equalsIgnoreCase("all")) {
                         String broadMsg = bin.readLine();
-                        broadcastMessage(name + ": " + broadMsg, null);
+                        broadcastMessage(name + ": " + broadMsg, this);
                     } else if (message.startsWith("@")) {
                         try {
                             int targetId = Integer.parseInt(message.substring(1));
