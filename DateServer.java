@@ -1,16 +1,16 @@
 import java.net.*;
 import java.io.*;
- 
+
 public class DateServer {
     static ClientHandler[] clients = new ClientHandler[100];
     static String[] clientNames = new String[100];
     static int clientCount = 0;
     static Thread[] clientThreads = new Thread[100];
- 
+
     public static void main(String[] args) {
         try {
             ServerSocket sock = new ServerSocket(6013);
- 
+
             System.out.println("Server searching for clients...");
             System.out.println("Commands:");
             System.out.println("  list        - Show connected clients");
@@ -18,13 +18,13 @@ public class DateServer {
             System.out.println("  close <id>  - Disconnect a client");
             System.out.println("  <id>        - Message a client");
             System.out.println("  <message>   - Broadcast to all clients");
- 
+
             new Thread(new Runnable() {
                 public void run() {
                     BufferedReader serverInput =
                             new BufferedReader(new InputStreamReader(System.in));
                     String input;
- 
+
                     try {
                         while ((input = serverInput.readLine()) != null) {
                             if (input.equalsIgnoreCase("list")) {
@@ -71,7 +71,7 @@ public class DateServer {
                     } catch (IOException e) {}
                 }
             }).start();
- 
+
             while (true) {
                 Socket client = sock.accept();
                 ClientHandler handler = new ClientHandler(client);
@@ -83,7 +83,7 @@ public class DateServer {
             System.err.println(ioe);
         }
     }
- 
+
     static synchronized int assignId() {
         boolean[] usedIds = new boolean[clientCount + 2];
         for (int i = 0; i < clientCount; i++) {
@@ -96,21 +96,21 @@ public class DateServer {
         }
         return clientCount + 1;
     }
- 
+
     static synchronized boolean nameExists(String name) {
         for (int i = 0; i < clientCount; i++) {
             if (clientNames[i].equalsIgnoreCase(name)) return true;
         }
         return false;
     }
- 
+
     static synchronized void addClient(ClientHandler handler) {
         clients[clientCount] = handler;
         clientNames[clientCount] = handler.name;
         clientThreads[clientCount] = handler.thread;
         clientCount++;
     }
- 
+
     static synchronized void removeClient(ClientHandler handler) {
         for (int i = 0; i < clientCount; i++) {
             if (clients[i] == handler) {
@@ -127,14 +127,14 @@ public class DateServer {
             }
         }
     }
- 
+
     static synchronized ClientHandler findClientById(int id) {
         for (int i = 0; i < clientCount; i++) {
             if (clients[i].id == id) return clients[i];
         }
         return null;
     }
- 
+
     static synchronized String getClientList() {
         String list = "Connected clients:\n";
         for (int i = 0; i < clientCount; i++) {
@@ -142,7 +142,7 @@ public class DateServer {
         }
         return list;
     }
- 
+
     static synchronized void broadcastMessage(String msg, ClientHandler exclude) {
         for (int i = 0; i < clientCount; i++) {
             if (clients[i] != exclude) {
@@ -150,7 +150,7 @@ public class DateServer {
             }
         }
     }
- 
+
     static class ClientHandler implements Runnable {
         Socket socket;
         PrintWriter pout;
@@ -159,28 +159,28 @@ public class DateServer {
         String name;
         String clientIP;
         Thread thread;
- 
+
         ClientHandler(Socket socket) {
             this.socket = socket;
             this.clientIP = socket.getInetAddress().getHostAddress();
         }
- 
+
         public void run() {
             try {
                 pout = new PrintWriter(socket.getOutputStream(), true);
                 bin = new BufferedReader(new InputStreamReader(socket.getInputStream()));
- 
+
                 pout.println("Enter your name:");
                 name = bin.readLine();
- 
+
                 while (nameExists(name)) {
                     pout.println("Name already taken. Enter another name:");
                     name = bin.readLine();
                 }
- 
+
                 id = assignId();
                 addClient(this);
- 
+
                 System.out.println("Client " + id + " has connected.");
                 pout.println("Your ID is: " + id);
                 pout.println("Commands:");
@@ -188,10 +188,10 @@ public class DateServer {
                 pout.println("  list   - List clients");
                 pout.println("  <id>   - Message a client");
                 pout.println("  all    - Broadcast to all clients");
- 
+
                 sendMessage(getClientList());
                 broadcastMessage(getClientList(), this);
- 
+
                 String message;
                 while ((message = bin.readLine()) != null) {
                     if (message.equalsIgnoreCase("end")) {
@@ -204,6 +204,7 @@ public class DateServer {
                         sendMessage(getClientList());
                     } else if (message.equalsIgnoreCase("all")) {
                         String broadMsg = bin.readLine();
+                        System.out.println(name + ": " + broadMsg);
                         broadcastMessage(name + ": " + broadMsg, this);
                     } else if (message.startsWith("@")) {
                         try {
@@ -226,17 +227,17 @@ public class DateServer {
                         System.out.println(name + ": " + message);
                     }
                 }
- 
+
                 removeClient(this);
                 socket.close();
- 
+
             } catch (IOException e) {}
         }
- 
+
         void sendMessage(String msg) {
             pout.println(msg);
         }
- 
+
         void endConnection() {
             try {
                 removeClient(this);
