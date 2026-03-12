@@ -1,13 +1,18 @@
 import java.net.*;
 import java.io.*;
- 
+
 public class DateClient {
     public static void main(String[] args) {
         try {
-            Socket sock = new Socket("172.16.41.197", 6013);
+            BufferedReader setupInput = new BufferedReader(new InputStreamReader(System.in));
+            System.out.print("IP: ");
+            String serverIP = setupInput.readLine();
+            System.out.print("Port: ");
+            int serverPort = Integer.parseInt(setupInput.readLine());
+            Socket sock = new Socket(serverIP, serverPort);
             PrintWriter pout = new PrintWriter(sock.getOutputStream(), true);
             BufferedReader bin = new BufferedReader(new InputStreamReader(sock.getInputStream()));
-            BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in));
+            BufferedReader userInput = setupInput;
             new Thread(new Runnable() {
                 public void run() {
                     try {
@@ -48,4 +53,3 @@ public class DateClient {
         }
     }
 }
-
