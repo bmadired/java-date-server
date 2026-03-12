@@ -18,6 +18,7 @@ public class DateServer {
             System.out.println("  close <id>  - Disconnect a client");
             System.out.println("  <id>        - Message a client");
             System.out.println("  <message>   - Broadcast to all clients");
+            System.out.println("  exit        - Shut down server");
 
             new Thread(new Runnable() {
                 public void run() {
@@ -27,7 +28,13 @@ public class DateServer {
 
                     try {
                         while ((input = serverInput.readLine()) != null) {
-                            if (input.equalsIgnoreCase("list")) {
+                            if (input.equalsIgnoreCase("exit")) {
+                                System.out.println("Server shutting down.");
+                                for (int i = 0; i < clientCount; i++) {
+                                    clients[i].sendMessage("Connection was ended.");
+                                }
+                                System.exit(0);
+                            } else if (input.equalsIgnoreCase("list")) {
                                 System.out.println("Connected clients:");
                                 for (int i = 0; i < clientCount; i++) {
                                     System.out.println(clients[i].id + ". " + clients[i].name);
@@ -199,7 +206,9 @@ public class DateServer {
                         break;
                     } else if (message.equalsIgnoreCase("exit")) {
                         System.out.println("Client " + id + " has exited.");
-                        break;
+                        removeClient(this);
+                        socket.close();
+                        return;
                     } else if (message.equalsIgnoreCase("list")) {
                         sendMessage(getClientList());
                     } else if (message.equalsIgnoreCase("all")) {
